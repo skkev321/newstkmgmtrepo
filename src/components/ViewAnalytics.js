@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { currencyFormatter, percentageFormatter } from './formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import moment from 'moment';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { ArrowUpRight, ArrowDownRight, DollarSign, Activity, CreditCard, Package } from 'lucide-react';
 
 export default function ViewAnalytics({ supabaseClient }) {
   const [data, setData] = useState(null);
@@ -167,113 +169,216 @@ export default function ViewAnalytics({ supabaseClient }) {
     fetchData();
   }, [fetchData]);
 
-  if (isLoading) return <div className="loading">Loading analytics...</div>;
-  if (message) return <div className="message error">{message}</div>;
+  if (isLoading) return (
+    <div className="flex h-[50vh] items-center justify-center">
+      <div className="text-muted-foreground animate-pulse">Loading analytics...</div>
+    </div>
+  );
+
+  if (message) return (
+    <div className="p-4 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+      {message}
+    </div>
+  );
+
   if (!data) return <div>No analytics available.</div>;
 
   return (
-    <div className="card">
-      <h2>📊 Business Overview</h2>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label>Date Range: </label>
-        <select value={range} onChange={(e) => setRange(e.target.value)}>
-          <option value="monthly">Monthly</option>
-          <option value="last3months">Last 3 Months</option>
-          <option value="ytd">Year to Date</option>
-        </select>
-      </div>
-
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <strong>Total Revenue:</strong>
-          <p>{currencyFormatter.format(data.totalRevenue)}</p>
-        </div>
-        <div className="metric-card">
-          <strong>COGS:</strong>
-          <p>{currencyFormatter.format(data.totalCost)}</p>
-        </div>
-        <div className="metric-card">
-          <strong>Net Profit:</strong>
-          <p>{currencyFormatter.format(data.totalProfit)}</p>
-        </div>
-        <div className="metric-card">
-          <strong>Gross Margin:</strong>
-          <p>{percentageFormatter.format(data.grossMargin)}</p>
-        </div>
-        <div className="metric-card">
-          <strong>Receivables:</strong>
-          <p>{currencyFormatter.format(data.receivables)}</p>
-        </div>
-        <div className="metric-card">
-          <strong>Payables:</strong>
-          <p>{currencyFormatter.format(data.payables)}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-3xl font-bold tracking-tight text-primary">Business Overview</h2>
+        <div className="flex items-center space-x-2">
+          <select
+            className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+          >
+            <option value="monthly">This Month</option>
+            <option value="last3months">Last 3 Months</option>
+            <option value="ytd">Year to Date</option>
+          </select>
         </div>
       </div>
 
-      <div className="analytic-section">
-        <h3>📈 Monthly Sales Trend</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data.salesTrend}>
-            <CartesianGrid stroke="#ccc" />
-            <XAxis dataKey="month" />
-            <YAxis tickFormatter={(v) => currencyFormatter.format(v)} />
-            <Tooltip formatter={(v) => currencyFormatter.format(v)} />
-            <Line type="monotone" dataKey="total" stroke="#3b82f6" />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currencyFormatter.format(data.totalRevenue)}</div>
+            <p className="text-xs text-muted-foreground pt-1">Gross sales for period</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{currencyFormatter.format(data.totalProfit)}</div>
+            <div className="flex items-center text-xs text-muted-foreground pt-1">
+              <span className={data.grossMargin > 0.2 ? "text-emerald-500" : "text-yellow-500"}>
+                {percentageFormatter.format(data.grossMargin)}
+              </span>
+              <span className="ml-1">margin</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Receivables</CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currencyFormatter.format(data.receivables)}</div>
+            <p className="text-xs text-muted-foreground pt-1">Pending payments from customers</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Payables</CardTitle>
+            <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currencyFormatter.format(data.payables)}</div>
+            <p className="text-xs text-muted-foreground pt-1">Pending payments to suppliers</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="analytic-section">
-        <h3>📅 Week-on-Week Sales Trend</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data.weeklySalesTrend}>
-            <CartesianGrid stroke="#ccc" />
-            <XAxis dataKey="week" />
-            <YAxis tickFormatter={(v) => currencyFormatter.format(v)} />
-            <Tooltip formatter={(v) => currencyFormatter.format(v)} />
-            <Line type="monotone" dataKey="total" stroke="#6366f1" />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Sales Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={range === 'monthly' ? data.weeklySalesTrend : data.salesTrend}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey={range === 'monthly' ? "week" : "month"}
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  formatter={(v) => currencyFormatter.format(v)}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Line type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Top Items by Profit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.topBundles} layout="vertical" margin={{ left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={100}
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  formatter={(v) => currencyFormatter.format(v)}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Bar dataKey="totalProfit" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="analytic-section">
-        <h3>🏆 Top 5 Bundles by Profit</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data.topBundles}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis tickFormatter={(v) => currencyFormatter.format(v)} />
-            <Tooltip formatter={(v) => currencyFormatter.format(v)} />
-            <Bar dataKey="totalProfit" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Low Profit Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.bottomBundles}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  formatter={(v) => currencyFormatter.format(v)}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Bar dataKey="totalProfit" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      <div className="analytic-section">
-        <h3>⚠️ Bottom 5 Bundles by Profit</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data.bottomBundles}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis tickFormatter={(v) => currencyFormatter.format(v)} />
-            <Tooltip formatter={(v) => currencyFormatter.format(v)} />
-            <Bar dataKey="totalProfit" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="analytic-section">
-        <h3>📦 Current Stock (Packs)</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data.stockByBundle}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="packs" />
-          </BarChart>
-        </ResponsiveContainer>
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Inventory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.stockByBundle}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                />
+                <Bar dataKey="packs" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

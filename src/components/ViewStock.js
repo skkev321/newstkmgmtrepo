@@ -1,4 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Search, RotateCw, Package, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function ViewStock({ supabaseClient }) {
   const [rows, setRows] = useState([]);
@@ -22,8 +27,6 @@ export default function ViewStock({ supabaseClient }) {
     setMessage('');
 
     try {
-      // 1) Load from the VIEW (no nested relationship calls here)
-      // Your view already exposes bundle_id, name, packs_in_stock
       const { data: cs, error: csErr } = await supabaseClient
         .schema('app')
         .from('v_current_stock')
@@ -35,7 +38,6 @@ export default function ViewStock({ supabaseClient }) {
       const stock = cs || [];
       const bundleIds = [...new Set(stock.map((x) => x.bundle_id).filter(Boolean))];
 
-      // 2) Load packs_per_bundle from bundles table
       let bundles = [];
       if (bundleIds.length > 0) {
         const { data: b, error: bErr } = await supabaseClient
@@ -50,7 +52,6 @@ export default function ViewStock({ supabaseClient }) {
 
       const packsPerBundleById = new Map(bundles.map((b) => [b.id, Number(b.packs_per_bundle || 0)]));
 
-      // 3) Merge into the shape your UI expects
       const normalized = stock.map((r) => ({
         bundle_id: r.bundle_id,
         name: r.name,
@@ -68,7 +69,6 @@ export default function ViewStock({ supabaseClient }) {
   }, [supabaseClient]);
 
   const loadMovements = useCallback(async () => {
-    // Show last 50 movements
     let q = supabaseClient
       .schema('app')
       .from('stock_movements')
@@ -139,252 +139,221 @@ export default function ViewStock({ supabaseClient }) {
   };
 
   const badgeFor = (packsInStock) => {
-    if (packsInStock <= 0) return { text: 'OUT', color: '#ef4444' };
-    if (packsInStock <= 10) return { text: 'LOW', color: '#f59e0b' };
-    return null;
+    if (packsInStock <= 0) return { text: 'OUT', className: 'bg-destructive/10 text-destructive' };
+    if (packsInStock <= 10) return { text: 'LOW', className: 'bg-yellow-500/10 text-yellow-600' };
+    return { text: 'OK', className: 'bg-emerald-500/10 text-emerald-600' };
   };
 
   return (
-    <div className="card">
-      <h2>📦 Current Stock (Packs)</h2>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" /> Current Stock
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 w-[250px]"
+              />
+            </div>
+            <Button variant="outline" size="icon" onClick={load} disabled={isLoading || isSaving}>
+              <RotateCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {message && (
+            <div className={cn("p-3 mb-4 rounded-md text-sm font-medium", message.startsWith('Error') ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600")}>
+              {message}
+            </div>
+          )}
 
-      {message && <p className={`message ${message.startsWith('Error') ? 'error' : ''}`}>{message}</p>}
-
-      <div className="form-grid" style={{ marginBottom: 12 }}>
-        <div className="form-group">
-          <label>Search bundle</label>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type to search..." />
-        </div>
-
-        <div className="form-actions">
-          <button type="button" className="button secondary" onClick={load} disabled={isLoading || isSaving}>
-            {isLoading ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
-
-      <div className="responsive-table">
-        <table className="moderntable">
-          <thead>
-            <tr>
-              <th>Bundle</th>
-              <th>Packs/Bundle</th>
-              <th>Packs in Stock</th>
-              <th>Equivalent Bundles</th>
-              <th>Status</th>
-              <th style={{ width: 140 }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.length === 0 ? (
-              <tr>
-                <td colSpan="6">No stock rows found.</td>
-              </tr>
-            ) : (
-              filteredRows.map((r) => {
-                const badge = badgeFor(r.packs_in_stock);
-                const eqBundles = r.packs_per_bundle > 0 ? r.packs_in_stock / r.packs_per_bundle : null;
-
-                return (
-                  <React.Fragment key={r.bundle_id}>
-                    <tr>
-                      <td>
-                        <strong>{r.name}</strong>
-                      </td>
-                      <td>{r.packs_per_bundle || '—'}</td>
-                      <td>{r.packs_in_stock}</td>
-                      <td>{eqBundles == null ? '—' : eqBundles.toFixed(2)}</td>
-                      <td>
-                        {badge ? (
-                          <span style={{ padding: '2px 8px', borderRadius: 10, background: badge.color, color: 'white', fontWeight: 700 }}>
-                            {badge.text}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#10b981', fontWeight: 700 }}>OK</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="button primary"
-                          onClick={() => {
-                            setOpenAdjustFor((cur) => (cur === r.bundle_id ? null : r.bundle_id));
-                            setType('adjustment_out');
-                            setPacks('');
-                            setReason('');
-                            setMovementFilterBundleId(r.bundle_id);
-                          }}
-                        >
-                          Adjust
-                        </button>
-                      </td>
-                    </tr>
-
-                    {openAdjustFor === r.bundle_id && (
-                      <tr>
-                        <td colSpan="6">
-                          <div style={{ background: '#f9fafb', padding: 12, borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                              <div>
-                                <strong>Adjust:</strong> {r.name}
-                                <div style={{ color: '#64748b', marginTop: 4 }}>
-                                  Current: <strong>{r.packs_in_stock}</strong> packs
-                                </div>
-                              </div>
-                              <button type="button" className="button secondary" onClick={() => setOpenAdjustFor(null)} disabled={isSaving}>
-                                Close
-                              </button>
-                            </div>
-
-                            <form onSubmit={submitAdjustment} className="form-grid" style={{ marginTop: 12 }}>
-                              <div className="form-group">
-                                <label>Type</label>
-                                <select value={type} onChange={(e) => setType(e.target.value)} disabled={isSaving}>
-                                  <option value="adjustment_out">Remove (damaged/lost/expired)</option>
-                                  <option value="adjustment_in">Add (correction)</option>
-                                </select>
-                              </div>
-
-                              <div className="form-group">
-                                <label>Packs</label>
-                                <input type="number" min="1" value={packs} onChange={(e) => setPacks(e.target.value)} disabled={isSaving} required />
-                              </div>
-
-                              <div className="form-group">
-                                <label>Reason {type === 'adjustment_out' ? '(required)' : '(optional)'}</label>
-                                <input
-                                  value={reason}
-                                  onChange={(e) => setReason(e.target.value)}
-                                  disabled={isSaving}
-                                  placeholder={type === 'adjustment_out' ? 'Required for removals' : 'Optional'}
-                                />
-                              </div>
-
-                              <div className="metric-card" style={{ textAlign: 'left' }}>
-                                <strong>Preview</strong>
-                                <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
-                                  <div>
-                                    Delta: <strong>{Number.isFinite(delta) ? delta : 0}</strong> packs
-                                  </div>
-                                  <div>
-                                    Resulting Stock:{' '}
-                                    <strong style={{ color: resulting != null && resulting < 0 ? '#ef4444' : 'inherit' }}>
-                                      {resulting == null ? '—' : resulting}
-                                    </strong>
-                                  </div>
-                                  {resulting != null && resulting < 0 && (
-                                    <small style={{ color: '#ef4444' }}>Warning: this would go negative (DB may block this).</small>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="form-actions">
-                                <button className="button primary" type="submit" disabled={isSaving}>
-                                  {isSaving ? 'Saving...' : 'Save Adjustment'}
-                                </button>
-                              </div>
-                            </form>
-
-                            <div style={{ marginTop: 16 }}>
-                              <h4 style={{ margin: 0, color: '#3b82f6' }}>Recent Movements (filtered)</h4>
-                              <div className="responsive-table">
-                                <table className="moderntable" style={{ marginTop: 8 }}>
-                                  <thead>
-                                    <tr>
-                                      <th>Date/Time</th>
-                                      <th>Type</th>
-                                      <th>Delta</th>
-                                      <th>Reason</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {movements.length === 0 ? (
-                                      <tr>
-                                        <td colSpan="4">No movements found.</td>
-                                      </tr>
-                                    ) : (
-                                      movements.map((m) => (
-                                        <tr key={m.id}>
-                                          <td>{new Date(m.movement_datetime).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })}</td>
-                                          <td>{m.movement_type}</td>
-                                          <td>{m.packs_delta}</td>
-                                          <td>{m.reason || '—'}</td>
-                                        </tr>
-                                      ))
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <hr />
-
-      <div className="form-grid" style={{ marginTop: 12 }}>
-        <div className="form-group">
-          <label>Movement history filter</label>
-          <select value={movementFilterBundleId} onChange={(e) => setMovementFilterBundleId(e.target.value)}>
-            <option value="">All bundles</option>
-            {rows.map((r) => (
-              <option key={r.bundle_id} value={r.bundle_id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-actions">
-          <button type="button" className="button secondary" onClick={loadMovements}>
-            Refresh Movements
-          </button>
-        </div>
-      </div>
-
-      {!openAdjustFor && (
-        <div style={{ marginTop: 12 }}>
-          <h3>📜 Recent Stock Movements</h3>
-          <div className="responsive-table">
-            <table className="moderntable">
+          <div className="rounded-md border">
+            <table className="w-full caption-bottom text-sm">
               <thead>
-                <tr>
-                  <th>Date/Time</th>
-                  <th>Bundle</th>
-                  <th>Type</th>
-                  <th>Delta</th>
-                  <th>Reason</th>
+                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Bundle</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Packs/Bundle</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">In Stock</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Est. Bundles</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                  <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="p-4 text-center text-muted-foreground">No stock data found.</td>
+                  </tr>
+                ) : (
+                  filteredRows.map((r) => {
+                    const status = badgeFor(r.packs_in_stock);
+                    const eqBundles = r.packs_per_bundle > 0 ? r.packs_in_stock / r.packs_per_bundle : null;
+
+                    return (
+                      <React.Fragment key={r.bundle_id}>
+                        <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                          <td className="p-4 font-medium">{r.name}</td>
+                          <td className="p-4">{r.packs_per_bundle || '—'}</td>
+                          <td className="p-4">{r.packs_in_stock}</td>
+                          <td className="p-4">{eqBundles == null ? '—' : eqBundles.toFixed(2)}</td>
+                          <td className="p-4">
+                            <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2", status.className)}>
+                              {status.text}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button
+                              variant={openAdjustFor === r.bundle_id ? "secondary" : "ghost"}
+                              size="sm"
+                              onClick={() => {
+                                setOpenAdjustFor((cur) => (cur === r.bundle_id ? null : r.bundle_id));
+                                setType('adjustment_out');
+                                setPacks('');
+                                setReason('');
+                                setMovementFilterBundleId(r.bundle_id);
+                              }}
+                            >
+                              Adjust
+                            </Button>
+                          </td>
+                        </tr>
+                        {openAdjustFor === r.bundle_id && (
+                          <tr className="bg-muted/50">
+                            <td colSpan="6" className="p-4">
+                              <div className="rounded-lg border bg-card text-card-foreground shadow-sm max-w-2xl mx-auto">
+                                <div className="p-6">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                      <h3 className="font-semibold leading-none tracking-tight">Adjust Stock: {r.name}</h3>
+                                      <p className="text-sm text-muted-foreground mt-1">Current: {r.packs_in_stock} packs</p>
+                                    </div>
+                                    <Button variant="ghost" size="sm" onClick={() => setOpenAdjustFor(null)}>Cancel</Button>
+                                  </div>
+
+                                  <form onSubmit={submitAdjustment} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <label className="text-sm font-medium">Action</label>
+                                        <select
+                                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                          value={type} onChange={(e) => setType(e.target.value)} disabled={isSaving}
+                                        >
+                                          <option value="adjustment_out">Remove (Lost/Damaged)</option>
+                                          <option value="adjustment_in">Add (Correction)</option>
+                                        </select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="text-sm font-medium">Quantity (Packs)</label>
+                                        <Input type="number" min="1" value={packs} onChange={(e) => setPacks(e.target.value)} disabled={isSaving} required />
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">Reason</label>
+                                      <Input
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        placeholder={type === 'adjustment_out' ? "Required..." : "Optional..."}
+                                        disabled={isSaving}
+                                      />
+                                    </div>
+
+                                    <div className="rounded-md bg-muted p-3 text-sm">
+                                      <div className="flex justify-between items-center">
+                                        <span>Resulting Stock:</span>
+                                        <span className={cn("font-bold", resulting != null && resulting < 0 && "text-destructive")}>
+                                          {resulting == null ? '—' : resulting}
+                                        </span>
+                                      </div>
+                                      {resulting != null && resulting < 0 && (
+                                        <p className="text-destructive text-xs mt-1">Warning: Stock cannot be negative.</p>
+                                      )}
+                                    </div>
+
+                                    <div className="flex justify-end pt-2">
+                                      <Button type="submit" disabled={isSaving}>
+                                        {isSaving && <RotateCw className="mr-2 h-4 w-4 animate-spin" />}
+                                        {isSaving ? 'Saving...' : 'Save Adjustment'}
+                                      </Button>
+                                    </div>
+                                  </form>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5" /> Recent Movements
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <select
+              className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={movementFilterBundleId}
+              onChange={(e) => setMovementFilterBundleId(e.target.value)}
+            >
+              <option value="">All Bundles</option>
+              {rows.map((r) => (
+                <option key={r.bundle_id} value={r.bundle_id}>{r.name}</option>
+              ))}
+            </select>
+            <Button variant="outline" size="sm" onClick={loadMovements}>Refresh</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <table className="w-full caption-bottom text-sm">
+              <thead>
+                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground w-[200px]">Date/Time</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Bundle</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Type</th>
+                  <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Delta</th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground pl-8">Reason</th>
                 </tr>
               </thead>
               <tbody>
                 {movements.length === 0 ? (
-                  <tr>
-                    <td colSpan="5">No movements found.</td>
-                  </tr>
+                  <tr><td colSpan="5" className="p-4 text-center text-muted-foreground">No history found.</td></tr>
                 ) : (
                   movements.map((m) => (
-                    <tr key={m.id}>
-                      <td>{new Date(m.movement_datetime).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })}</td>
-                      <td>{m.bundles?.name || '—'}</td>
-                      <td>{m.movement_type}</td>
-                      <td>{m.packs_delta}</td>
-                      <td>{m.reason || '—'}</td>
+                    <tr key={m.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <td className="p-4">{new Date(m.movement_datetime).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })}</td>
+                      <td className="p-4 font-medium">{m.bundles?.name || '—'}</td>
+                      <td className="p-4">
+                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-foreground">
+                          {m.movement_type}
+                        </span>
+                      </td>
+                      <td className={cn("p-4 text-right font-mono", m.packs_delta > 0 ? "text-emerald-600" : "text-destructive")}>
+                        {m.packs_delta > 0 ? "+" : ""}{m.packs_delta}
+                      </td>
+                      <td className="p-4 pl-8 text-muted-foreground">{m.reason || '—'}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
