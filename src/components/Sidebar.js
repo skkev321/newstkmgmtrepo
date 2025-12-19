@@ -1,5 +1,5 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import {
     LayoutDashboard,
     Save,
@@ -8,9 +8,10 @@ import {
     Package,
     TrendingUp,
     Tags,
-    History
+    History,
+    LogOut,
+    User
 } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,6 +25,8 @@ const navItems = [
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
+    const { user, signOut } = useAuth();
+
     return (
         <>
             {/* Mobile Overlay */}
@@ -67,9 +70,32 @@ export default function Sidebar({ isOpen, onClose }) {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-border">
-                    <div className="px-3 py-2">
-                        <p className="text-xs text-muted-foreground font-medium">v1.0.0</p>
+                <div className="p-4 border-t border-border space-y-4">
+                    {user && (
+                        <div className="flex items-center gap-3 px-3 py-2 border rounded-lg bg-muted/30">
+                            <div className="bg-primary/10 p-1.5 rounded-full">
+                                <User className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="overflow-hidden">
+                                <p className="text-xs font-medium text-foreground truncate">{user.email}</p>
+                                <p className="text-[10px] text-muted-foreground">Admin Access</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={() => signOut()}
+                        className="flex w-full items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-lg transition-colors duration-200"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                    </button>
+
+                    <div className="px-3">
+                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            System v2.0 Ready
+                        </p>
                     </div>
                 </div>
             </div>

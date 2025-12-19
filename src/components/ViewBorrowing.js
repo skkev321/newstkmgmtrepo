@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { BarChart3, Calendar, DollarSign, TrendingUp, ShoppingBag, RefreshCw } from 'lucide-react';
-import { cn } from '../lib/utils';
+
 
 export default function ViewBorrowing({ supabaseClient }) {
   const [reportData, setReportData] = useState(null);
