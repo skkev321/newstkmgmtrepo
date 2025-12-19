@@ -21,8 +21,8 @@ export default function RecordSaleForm({ supabaseClient }) {
   const [invoiceDate, setInvoiceDate] = useState('');
 
   // Hooks
-  const { customers, loading: customersLoading, createCustomer, refresh: refreshCustomers } = useCustomers(supabaseClient);
-  const { stock, stockByBundle, loading: stockLoading, refresh: refreshStock } = useStock(supabaseClient);
+  const { customers, loading: customersLoading, createCustomer } = useCustomers(supabaseClient);
+  const { stock, stockByBundle, refresh: refreshStock } = useStock(supabaseClient);
 
   // Local state for UI
   const [customerQuery, setCustomerQuery] = useState('');
