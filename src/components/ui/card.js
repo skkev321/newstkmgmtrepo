@@ -23,8 +23,9 @@ const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
     <h3
         ref={ref}
         className={cn("text-2xl font-semibold leading-none tracking-tight", className)}
-        {...props}
-    />
+    >
+        {props.children || <span className="sr-only">Card Title</span>}
+    </h3>
 ))
 CardTitle.displayName = "CardTitle"
 
