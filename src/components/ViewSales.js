@@ -163,7 +163,7 @@ export default function ViewSales({ supabaseClient }) {
             </div>
           )}
 
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <table className="w-full caption-bottom text-sm">
               <thead>
                 <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
