@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { cn } from '../lib/utils';
 import {
     LayoutDashboard,
     Save,
