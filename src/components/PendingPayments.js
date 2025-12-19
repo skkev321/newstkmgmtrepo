@@ -1,9 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { generateCustomerOutstandingReceipt, generateSupplierOutstandingReceipt } from './ReceiptModal';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Printer, Check, ChevronDown, ChevronRight, Calculator, CreditCard, RotateCw, User, Truck, DollarSign } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { currencyFormatter } from './formatters';
 
 export default function PendingPayments({ supabaseClient }) {
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Tab state (default showing both or tabbed? Let's keep split view or tabs? Tabs are cleaner for mobile)
+  const [activeTab, setActiveTab] = useState('customers'); // 'customers' | 'suppliers' | 'credits'
 
   const [salesBalances, setSalesBalances] = useState([]);
   const [purchaseBalances, setPurchaseBalances] = useState([]);
@@ -153,7 +162,7 @@ export default function PendingPayments({ supabaseClient }) {
 
       if (allocErr) throw allocErr;
 
-      setMessage(`✅ Marked paid: ${inv.invoice_no} (LKR ${balanceDue.toFixed(2)})`);
+      setMessage(`✅ Marked paid: ${inv.invoice_no} (${currencyFormatter.format(balanceDue)})`);
       await load();
     } catch (err) {
       setMessage(`Error marking paid: ${err?.message || 'Unknown error'}`);
@@ -210,7 +219,7 @@ export default function PendingPayments({ supabaseClient }) {
 
       const remainder = amount - applyAmount;
       if (remainder > 0) {
-        setMessage(`✅ Saved. Applied LKR ${applyAmount.toFixed(2)}; extra LKR ${remainder.toFixed(2)} remains as customer credit.`);
+        setMessage(`✅ Saved. Applied ${currencyFormatter.format(applyAmount)}; extra ${currencyFormatter.format(remainder)} remains as customer credit.`);
       } else {
         setMessage(`✅ Saved partial payment: ${inv.invoice_no}`);
       }
@@ -310,7 +319,7 @@ export default function PendingPayments({ supabaseClient }) {
 
       if (allocErr) throw allocErr;
 
-      setMessage(`✅ Supplier invoice paid: ${inv.invoice_no} (LKR ${balanceDue.toFixed(2)})`);
+      setMessage(`✅ Supplier invoice paid: ${inv.invoice_no} (${currencyFormatter.format(balanceDue)})`);
       await load();
     } catch (err) {
       setMessage(`Error paying supplier invoice: ${err?.message || 'Unknown error'}`);
@@ -367,7 +376,7 @@ export default function PendingPayments({ supabaseClient }) {
 
       const remainder = amount - applyAmount;
       if (remainder > 0) {
-        setMessage(`✅ Saved. Applied LKR ${applyAmount.toFixed(2)}; extra LKR ${remainder.toFixed(2)} remains as supplier advance.`);
+        setMessage(`✅ Saved. Applied ${currencyFormatter.format(applyAmount)}; extra ${currencyFormatter.format(remainder)} remains as supplier advance.`);
       } else {
         setMessage(`✅ Saved partial supplier payment: ${inv.invoice_no}`);
       }
@@ -424,370 +433,299 @@ export default function PendingPayments({ supabaseClient }) {
   };
 
   return (
-    <div className="card">
-      <h2>💳 Pending Payments</h2>
-      {message && <p className={`message ${message.startsWith('Error') ? 'error' : ''}`}>{message}</p>}
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-2">
+          <CreditCard className="h-6 w-6" /> Pending Payments
+        </h2>
+        <div className="flex p-1 bg-muted rounded-lg">
+          <button
+            className={cn("px-4 py-1.5 text-sm font-medium rounded-md transition-all", activeTab === 'customers' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
+            onClick={() => setActiveTab('customers')}
+          >
+            Customers (Sales)
+          </button>
+          <button
+            className={cn("px-4 py-1.5 text-sm font-medium rounded-md transition-all", activeTab === 'suppliers' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
+            onClick={() => setActiveTab('suppliers')}
+          >
+            Suppliers (Purchase)
+          </button>
+          <button
+            className={cn("px-4 py-1.5 text-sm font-medium rounded-md transition-all", activeTab === 'credits' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
+            onClick={() => setActiveTab('credits')}
+          >
+            Credits & Advances
+          </button>
+        </div>
+      </div>
 
-      <div className="split-container">
-        {/* CUSTOMER PENDING */}
-        <div className="column">
-          <h3>👤 Customer Pending Sales</h3>
+      {message && (
+        <div className={cn("p-4 rounded-md text-sm font-medium border", message.startsWith('Error') ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+          {message}
+        </div>
+      )}
 
-          {salesPaged.totalCount === 0 ? (
-            <div className="loading">No outstanding sales invoices.</div>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ color: '#64748b' }}>
-                  Showing <strong>{salesPaged.items.length}</strong> of <strong>{salesPaged.totalCount}</strong> outstanding invoices
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    className="button secondary"
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={salesPaged.safePage <= 1}
-                  >
-                    Prev
-                  </button>
-
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {Array.from({ length: salesPaged.totalPages }, (_, i) => i + 1).map((pno) => (
-                      <button
-                        key={pno}
-                        type="button"
-                        className={`button ${pno === salesPaged.safePage ? 'primary' : 'secondary'}`}
-                        onClick={() => setPage(pno)}
-                        style={{ padding: '0.35rem 0.65rem' }}
-                      >
-                        {pno}
-                      </button>
-                    ))}
+      {/* CUSTOMER PENDING */}
+      {activeTab === 'customers' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" /> Customer Pending Sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {salesPaged.totalCount === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">No outstanding sales invoices.</div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-muted/30 p-2 rounded-lg border text-sm">
+                  <span className="text-muted-foreground ml-2">
+                    Showing <strong>{salesPaged.items.length}</strong> of <strong>{salesPaged.totalCount}</strong> outstanding
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={salesPaged.safePage <= 1}>
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(salesPaged.totalPages, p + 1))} disabled={salesPaged.safePage >= salesPaged.totalPages}>
+                      Next
+                    </Button>
                   </div>
-
-                  <button
-                    className="button secondary"
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(salesPaged.totalPages, p + 1))}
-                    disabled={salesPaged.safePage >= salesPaged.totalPages}
-                  >
-                    Next
-                  </button>
                 </div>
-              </div>
 
-              <div style={{ marginTop: 12 }}>
-                {customersOnPage.map((cg) => {
-                  const cname = customerNameById.get(cg.customer_id) || cg.customer_id;
-                  const expanded = expandedCustomerId === cg.customer_id;
+                <div className="space-y-3">
+                  {customersOnPage.map((cg) => {
+                    const cname = customerNameById.get(cg.customer_id) || cg.customer_id;
+                    const expanded = expandedCustomerId === cg.customer_id;
 
-                  return (
-                    <div key={cg.customer_id} className="payment-item" style={{ marginBottom: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                        <div style={{ cursor: 'pointer' }} onClick={() => setExpandedCustomerId(expanded ? null : cg.customer_id)}>
-                          <strong>{cname}</strong>
-                          <div style={{ color: '#64748b', marginTop: 4 }}>
-                            Invoices on this page: {cg.count} | Due (on this page): LKR {cg.balanceSum.toFixed(2)}
+                    return (
+                      <div key={cg.customer_id} className="border rounded-lg overflow-hidden transition-all bg-card">
+                        <div
+                          className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-muted/50"
+                        >
+                          <div className="flex-1" onClick={() => setExpandedCustomerId(expanded ? null : cg.customer_id)}>
+                            <div className="flex items-center gap-2">
+                              {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                              <h3 className="font-semibold text-lg">{cname}</h3>
+                            </div>
+                            <div className="text-sm text-muted-foreground ml-6 mt-1 flex gap-4">
+                              <span>Records: {cg.count}</span>
+                              <span>Due: <span className="font-mono text-foreground font-medium">{currencyFormatter.format(cg.balanceSum)}</span></span>
+                            </div>
                           </div>
-                          <small style={{ color: '#64748b' }}>{expanded ? 'Click to collapse' : 'Click to expand invoices'}</small>
+                          <Button variant="secondary" size="sm" onClick={() => printCustomerOutstanding(cg.customer_id)} disabled={isSaving}>
+                            <Printer className="h-4 w-4 mr-2" /> Outstanding Statement
+                          </Button>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => printCustomerOutstanding(cg.customer_id)}
-                            disabled={isSaving}
-                            title="Print customer outstanding statement"
-                          >
-                            🖨️ Print Outstanding
-                          </button>
-                        </div>
-                      </div>
-
-                      {expanded && (
-                        <div style={{ marginTop: 10 }}>
-                          <div className="responsive-table">
-                            <table className="moderntable">
-                              <thead>
+                        {expanded && (
+                          <div className="border-t bg-muted/10 p-0 overflow-x-auto animate-in slide-in-from-top-1">
+                            <table className="w-full text-sm caption-bottom">
+                              <thead className="bg-muted/50 border-b">
                                 <tr>
-                                  <th>Date</th>
-                                  <th>Invoice</th>
-                                  <th>Total</th>
-                                  <th>Paid</th>
-                                  <th>Balance</th>
-                                  <th style={{ width: 240 }}>Actions</th>
+                                  <th className="h-10 px-4 text-left font-medium text-muted-foreground">Date</th>
+                                  <th className="h-10 px-4 text-left font-medium text-muted-foreground">Invoice</th>
+                                  <th className="h-10 px-4 text-right font-medium text-muted-foreground">Total</th>
+                                  <th className="h-10 px-4 text-right font-medium text-muted-foreground">Paid</th>
+                                  <th className="h-10 px-4 text-right font-medium text-muted-foreground">Balance</th>
+                                  <th className="h-10 px-4 text-left font-medium text-muted-foreground pl-8">Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {cg.invoices.map((inv) => (
-                                  <tr key={inv.id}>
-                                    <td>{new Date(inv.invoice_date).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })}</td>
-                                    <td>{inv.invoice_no}</td>
-                                    <td>{Number(inv.total || 0).toFixed(2)}</td>
-                                    <td>{Number(inv.paid_applied || 0).toFixed(2)}</td>
-                                    <td><strong>{Number(inv.balance_due || 0).toFixed(2)}</strong></td>
-                                    <td>
-                                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                        <button
-                                          type="button"
-                                          className="button primary"
-                                          onClick={() => markSalesInvoicePaid(inv)}
-                                          disabled={isSaving}
-                                        >
-                                          Mark Paid (Cash)
-                                        </button>
+                                  <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                                    <td className="p-4 whitespace-nowrap">{new Date(inv.invoice_date).toLocaleDateString('en-LK')}</td>
+                                    <td className="p-4 font-mono">{inv.invoice_no}</td>
+                                    <td className="p-4 text-right tabular-nums">{currencyFormatter.format(inv.total)}</td>
+                                    <td className="p-4 text-right tabular-nums text-muted-foreground">{currencyFormatter.format(inv.paid_applied)}</td>
+                                    <td className="p-4 text-right tabular-nums font-bold text-destructive">{currencyFormatter.format(inv.balance_due)}</td>
+                                    <td className="p-4 pl-8">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Button size="sm" variant="default" className="h-8" onClick={() => markSalesInvoicePaid(inv)} disabled={isSaving}>
+                                          <Check className="h-3.5 w-3.5 mr-1" /> Mark Paid
+                                        </Button>
 
-                                        <button
-                                          type="button"
-                                          className="button secondary"
-                                          onClick={() => {
-                                            setPartialInvoiceId(inv.id);
-                                            setPartialAmount('');
-                                          }}
-                                          disabled={isSaving}
-                                        >
-                                          Partial
-                                        </button>
+                                        {partialInvoiceId === inv.id ? (
+                                          <div className="flex items-center gap-2 bg-background border rounded-md p-1 shadow-sm">
+                                            <Input
+                                              type="number" className="h-7 w-24 text-xs"
+                                              placeholder="Amount"
+                                              value={partialAmount}
+                                              onChange={(e) => setPartialAmount(e.target.value)}
+                                              autoFocus
+                                            />
+                                            <Button size="icon" className="h-7 w-7" onClick={() => savePartialCustomerPayment(inv)} disabled={isSaving}><Check className="h-3 w-3" /></Button>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setPartialInvoiceId(null); setPartialAmount(''); }}><ChevronDown className="h-3 w-3 rotate-180" /></Button>
+                                          </div>
+                                        ) : (
+                                          <Button size="sm" variant="outline" className="h-8" onClick={() => { setPartialInvoiceId(inv.id); setPartialAmount(''); }} disabled={isSaving}>
+                                            Partial
+                                          </Button>
+                                        )}
                                       </div>
-
-                                      {partialInvoiceId === inv.id && (
-                                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            placeholder="Amount"
-                                            value={partialAmount}
-                                            onChange={(e) => setPartialAmount(e.target.value)}
-                                            style={{ width: 130 }}
-                                          />
-                                          <button
-                                            type="button"
-                                            className="button primary"
-                                            onClick={() => savePartialCustomerPayment(inv)}
-                                            disabled={isSaving}
-                                          >
-                                            Save
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="button secondary"
-                                            onClick={() => {
-                                              setPartialInvoiceId(null);
-                                              setPartialAmount('');
-                                            }}
-                                            disabled={isSaving}
-                                          >
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      )}
                                     </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           </div>
-
-                          <small style={{ color: '#64748b' }}>
-                            Mark Paid records a real payment for the exact balance (cash) and allocates it to the invoice.
-                          </small>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* SUPPLIER PENDING */}
-        <div className="column">
-          <h3>🏭 Supplier Pending Borrowings</h3>
+      {/* SUPPLIER PENDING */}
+      {activeTab === 'suppliers' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" /> Supplier Pending Borrowings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {suppliersGrouped.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">No outstanding purchase invoices.</div>
+            ) : (
+              <div className="space-y-3">
+                {suppliersGrouped.map((sg) => {
+                  const sname = supplierNameById.get(sg.supplier_id) || sg.supplier_id;
+                  const expanded = expandedSupplierId === sg.supplier_id;
 
-          {suppliersGrouped.length === 0 ? (
-            <div className="loading">No outstanding purchase invoices.</div>
-          ) : (
-            <div style={{ marginTop: 12 }}>
-              {suppliersGrouped.map((sg) => {
-                const sname = supplierNameById.get(sg.supplier_id) || sg.supplier_id;
-                const expanded = expandedSupplierId === sg.supplier_id;
-
-                return (
-                  <div key={sg.supplier_id} className="payment-item" style={{ marginBottom: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                      <div style={{ cursor: 'pointer' }} onClick={() => setExpandedSupplierId(expanded ? null : sg.supplier_id)}>
-                        <strong>{sname}</strong>
-                        <div style={{ color: '#64748b', marginTop: 4 }}>
-                          Outstanding invoices: {sg.count} | Total due: LKR {sg.balanceSum.toFixed(2)}
+                  return (
+                    <div key={sg.supplier_id} className="border rounded-lg overflow-hidden transition-all bg-card">
+                      <div
+                        className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-muted/50"
+                      >
+                        <div className="flex-1" onClick={() => setExpandedSupplierId(expanded ? null : sg.supplier_id)}>
+                          <div className="flex items-center gap-2">
+                            {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                            <h3 className="font-semibold text-lg">{sname}</h3>
+                          </div>
+                          <div className="text-sm text-muted-foreground ml-6 mt-1 flex gap-4">
+                            <span>Records: {sg.count}</span>
+                            <span>Due: <span className="font-mono text-foreground font-medium">{currencyFormatter.format(sg.balanceSum)}</span></span>
+                          </div>
                         </div>
-                        <small style={{ color: '#64748b' }}>{expanded ? 'Click to collapse' : 'Click to expand invoices'}</small>
+                        <Button variant="secondary" size="sm" onClick={() => printSupplierOutstanding(sg.supplier_id)} disabled={isSaving}>
+                          <Printer className="h-4 w-4 mr-2" /> Outstanding Statement
+                        </Button>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="button secondary"
-                          onClick={() => printSupplierOutstanding(sg.supplier_id)}
-                          disabled={isSaving}
-                          title="Print supplier outstanding statement"
-                        >
-                          🖨️ Print Outstanding
-                        </button>
-                      </div>
-                    </div>
-
-                    {expanded && (
-                      <div style={{ marginTop: 10 }}>
-                        <div className="responsive-table">
-                          <table className="moderntable">
-                            <thead>
+                      {expanded && (
+                        <div className="border-t bg-muted/10 p-0 overflow-x-auto animate-in slide-in-from-top-1">
+                          <table className="w-full text-sm caption-bottom">
+                            <thead className="bg-muted/50 border-b">
                               <tr>
-                                <th>Date</th>
-                                <th>Invoice</th>
-                                <th>Total</th>
-                                <th>Paid</th>
-                                <th>Balance</th>
-                                <th style={{ width: 260 }}>Actions</th>
+                                <th className="h-10 px-4 text-left font-medium text-muted-foreground">Date</th>
+                                <th className="h-10 px-4 text-left font-medium text-muted-foreground">Invoice</th>
+                                <th className="h-10 px-4 text-right font-medium text-muted-foreground">Total</th>
+                                <th className="h-10 px-4 text-right font-medium text-muted-foreground">Paid</th>
+                                <th className="h-10 px-4 text-right font-medium text-muted-foreground">Balance</th>
+                                <th className="h-10 px-4 text-left font-medium text-muted-foreground pl-8">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {sg.invoices.map((inv) => (
-                                <tr key={inv.id}>
-                                  <td>{new Date(inv.invoice_date).toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })}</td>
-                                  <td>{inv.invoice_no}</td>
-                                  <td>{Number(inv.total || 0).toFixed(2)}</td>
-                                  <td>{Number(inv.paid_applied || 0).toFixed(2)}</td>
-                                  <td><strong>{Number(inv.balance_due || 0).toFixed(2)}</strong></td>
-                                  <td>
-                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                      <button
-                                        type="button"
-                                        className="button primary"
-                                        onClick={() => markPurchaseInvoicePaid(inv)}
-                                        disabled={isSaving}
-                                      >
-                                        Mark Paid (Cash)
-                                      </button>
+                                <tr key={inv.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                                  <td className="p-4 whitespace-nowrap">{new Date(inv.invoice_date).toLocaleDateString('en-LK')}</td>
+                                  <td className="p-4 font-mono">{inv.invoice_no}</td>
+                                  <td className="p-4 text-right tabular-nums">{currencyFormatter.format(inv.total)}</td>
+                                  <td className="p-4 text-right tabular-nums text-muted-foreground">{currencyFormatter.format(inv.paid_applied)}</td>
+                                  <td className="p-4 text-right tabular-nums font-bold text-destructive">{currencyFormatter.format(inv.balance_due)}</td>
+                                  <td className="p-4 pl-8">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Button size="sm" variant="default" className="h-8" onClick={() => markPurchaseInvoicePaid(inv)} disabled={isSaving}>
+                                        <Check className="h-3.5 w-3.5 mr-1" /> Mark Paid
+                                      </Button>
 
-                                      <button
-                                        type="button"
-                                        className="button secondary"
-                                        onClick={() => {
-                                          setPartialPurchaseInvoiceId(inv.id);
-                                          setPartialPurchaseAmount('');
-                                        }}
-                                        disabled={isSaving}
-                                      >
-                                        Partial
-                                      </button>
+                                      {partialPurchaseInvoiceId === inv.id ? (
+                                        <div className="flex items-center gap-2 bg-background border rounded-md p-1 shadow-sm">
+                                          <Input
+                                            type="number" className="h-7 w-24 text-xs"
+                                            placeholder="Amount"
+                                            value={partialPurchaseAmount}
+                                            onChange={(e) => setPartialPurchaseAmount(e.target.value)}
+                                            autoFocus
+                                          />
+                                          <Button size="icon" className="h-7 w-7" onClick={() => savePartialSupplierPayment(inv)} disabled={isSaving}><Check className="h-3 w-3" /></Button>
+                                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setPartialPurchaseInvoiceId(null); setPartialPurchaseAmount(''); }}><ChevronDown className="h-3 w-3 rotate-180" /></Button>
+                                        </div>
+                                      ) : (
+                                        <Button size="sm" variant="outline" className="h-8" onClick={() => { setPartialPurchaseInvoiceId(inv.id); setPartialPurchaseAmount(''); }} disabled={isSaving}>
+                                          Partial
+                                        </Button>
+                                      )}
                                     </div>
-
-                                    {partialPurchaseInvoiceId === inv.id && (
-                                      <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          placeholder="Amount"
-                                          value={partialPurchaseAmount}
-                                          onChange={(e) => setPartialPurchaseAmount(e.target.value)}
-                                          style={{ width: 130 }}
-                                        />
-                                        <button
-                                          type="button"
-                                          className="button primary"
-                                          onClick={() => savePartialSupplierPayment(inv)}
-                                          disabled={isSaving}
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="button secondary"
-                                          onClick={() => {
-                                            setPartialPurchaseInvoiceId(null);
-                                            setPartialPurchaseAmount('');
-                                          }}
-                                          disabled={isSaving}
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    )}
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-                        <small style={{ color: '#64748b' }}>
-                          Mark Paid records a real supplier payment (cash) and allocates it to the purchase invoice. Extra amount becomes supplier advance.
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* CREDITS & ADVANCES */}
+      {activeTab === 'credits' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Customer Credits</CardTitle></CardHeader>
+            <CardContent>
+              {customerCredit.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No customer credits found.</div>
+              ) : (
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {customerCredit.map(r => (
+                        <tr key={r.customer_id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="p-3 font-medium">{r.name}</td>
+                          <td className="p-3 text-right text-emerald-600 font-bold">{currencyFormatter.format(r.credit_balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Supplier Advances</CardTitle></CardHeader>
+            <CardContent>
+              {supplierAdvance.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No supplier advances found.</div>
+              ) : (
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {supplierAdvance.map(r => (
+                        <tr key={r.supplier_id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="p-3 font-medium">{r.name}</td>
+                          <td className="p-3 text-right text-emerald-600 font-bold">{currencyFormatter.format(r.advance_balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      </div>
-
-      <hr />
-
-      {/* Credits at the end (low priority) */}
-      <h3>Customer Credits (low priority)</h3>
-      <div className="responsive-table">
-        <table className="moderntable">
-          <thead>
-            <tr>
-              <th>Customer</th>
-              <th>Credit Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customerCredit.length === 0 ? (
-              <tr><td colSpan="2">No customer credits.</td></tr>
-            ) : (
-              customerCredit.map((r) => (
-                <tr key={r.customer_id}>
-                  <td>{r.name}</td>
-                  <td>{Number(r.credit_balance || 0).toFixed(2)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <h3 style={{ marginTop: 18 }}>Supplier Advances (info)</h3>
-      <div className="responsive-table">
-        <table className="moderntable">
-          <thead>
-            <tr>
-              <th>Supplier</th>
-              <th>Advance Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {supplierAdvance.length === 0 ? (
-              <tr><td colSpan="2">No supplier advances.</td></tr>
-            ) : (
-              supplierAdvance.map((r) => (
-                <tr key={r.supplier_id}>
-                  <td>{r.name}</td>
-                  <td>{Number(r.advance_balance || 0).toFixed(2)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   );
 }

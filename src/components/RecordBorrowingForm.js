@@ -1,4 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Plus, Trash2, Save, ShoppingCart, ChevronDown, ChevronRight, Calculator, UserPlus, Search } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { currencyFormatter } from './formatters';
 
 function toLocalDateTimeInputValue(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -254,154 +260,199 @@ export default function RecordBorrowingForm({ supabaseClient }) {
   };
 
   return (
-    <div className="card">
-      <h2>📥 Create Purchase Invoice (Bundles) — Credit Only</h2>
-
-      {message && <p className={`message ${message.startsWith('Error') ? 'error' : ''}`}>{message}</p>}
-
-      <form onSubmit={handleSubmit} className="form-grid">
-        <div className="form-group">
-          <label>Invoice No (auto)</label>
-          <input value={invoiceNo} readOnly />
-        </div>
-
-        <div className="form-group">
-          <label>Date & Time (Sri Lanka)</label>
-          <input type="datetime-local" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required />
-        </div>
-
-        <div className="form-group" style={{ position: 'relative' }}>
-          <label>Supplier (type to search)</label>
-          <input
-            value={supplierQuery}
-            onChange={(e) => {
-              setSupplierQuery(e.target.value);
-              setShowSupplierSuggestions(true);
-              setSelectedSupplier(null);
-              setSupplierCosts([]);
-            }}
-            onFocus={() => setShowSupplierSuggestions(true)}
-            placeholder="Type supplier name..."
-            required
-          />
-
-          {showSupplierSuggestions && supplierSuggestions.length > 0 && (
-            <ul className="suggestions" style={{ position: 'absolute', width: '100%', zIndex: 5 }}>
-              {supplierSuggestions.map((s) => (
-                <li key={s.id} onClick={() => selectSupplier(s)}>
-                  {s.name}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="button secondary" onClick={quickCreateSupplier} disabled={isSaving || !supplierQuery.trim()}>
-              + Quick Create Supplier
-            </button>
-
-            {selectedSupplier?.id && (
-              <small style={{ color: '#64748b' }}>
-                Selected: <strong>{selectedSupplier.name}</strong>
-              </small>
-            )}
-          </div>
-
-          <small style={{ color: '#64748b' }}>
-            Supplier default bundle costs can be empty and will fill naturally on first purchase per bundle.
-          </small>
-        </div>
-
-        <hr />
-
-        {lines.map((l, idx) => (
-          <div key={idx} className="form-group" style={{ border: '1px solid #eee', padding: 12, borderRadius: 8 }}>
-            <label>Bundle</label>
-            <select value={l.bundle_id} onChange={(e) => updateLine(idx, 'bundle_id', e.target.value)} required>
-              <option value="">Select bundle</option>
-              {bundles.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} (1 bundle = {b.packs_per_bundle} packs)
-                </option>
-              ))}
-            </select>
-
-            <label style={{ marginTop: 8 }}>Bundles Qty</label>
-            <input type="number" min="1" value={l.bundles_qty} onChange={(e) => updateLine(idx, 'bundles_qty', e.target.value)} required />
-
-            <label style={{ marginTop: 8 }}>Unit Cost per Bundle (LKR)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={l.unit_cost_per_bundle}
-              onChange={(e) => updateLine(idx, 'unit_cost_per_bundle', e.target.value)}
-              required
-            />
-            <small style={{ color: '#64748b' }}>
-              This can change per purchase. We will remember it as the supplier’s default for next time.
-            </small>
-
-            {lines.length > 1 && (
-              <button type="button" className="button secondary" onClick={() => removeLine(idx)} style={{ marginTop: 8 }} disabled={isSaving}>
-                Remove line
-              </button>
-            )}
-          </div>
-        ))}
-
-        <button type="button" className="button secondary" onClick={addLine} disabled={isSaving}>
-          + Add another line
-        </button>
-
-        <hr />
-
-        <div className="form-group">
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 18, cursor: 'pointer' }} onClick={() => setShowAdvanced((v) => !v)}>
-              {showAdvanced ? '⬇️' : '➡️'}
-            </span>
-            Advanced (Discount / Charges / Notes)
-          </label>
-
-          {showAdvanced && (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div className="form-group">
-                <label>Discount (LKR)</label>
-                <input type="number" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} />
-              </div>
-
-              <div className="form-group">
-                <label>Other Charges (LKR)</label>
-                <input type="number" step="0.01" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} />
-              </div>
-
-              <div className="form-group">
-                <label>Notes</label>
-                <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
-              </div>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <ShoppingCart className="h-6 w-6 text-primary" /> Create Purchase Invoice
+            <span className="text-sm font-normal text-muted-foreground ml-auto bg-secondary px-3 py-1 rounded-full">Credit Only</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {message && (
+            <div className={cn("p-4 mb-6 rounded-md text-sm font-medium flex items-center gap-2", message.startsWith('Error') ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600")}>
+              <span>{message}</span>
             </div>
           )}
-        </div>
 
-        <div className="metric-card" style={{ textAlign: 'left' }}>
-          <strong>Live Summary</strong>
-          <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
-            <div>Subtotal: LKR {calc.subtotal.toFixed(2)}</div>
-            <div>Discount: LKR {calc.disc.toFixed(2)}</div>
-            <div>Other Charges: LKR {calc.other.toFixed(2)}</div>
-            <div style={{ marginTop: 6 }}>
-              <strong>Total: LKR {calc.total.toFixed(2)}</strong>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Header Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/40 border">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Invoice No <span className="text-muted-foreground">(Auto)</span></label>
+                <Input value={invoiceNo} readOnly className="font-mono bg-muted" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date & Time</label>
+                <Input type="datetime-local" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required />
+              </div>
+
+              <div className="md:col-span-2 space-y-2 relative">
+                <label className="text-sm font-medium">Supplier</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={supplierQuery}
+                    onChange={(e) => {
+                      setSupplierQuery(e.target.value);
+                      setShowSupplierSuggestions(true);
+                      setSelectedSupplier(null);
+                      setSupplierCosts([]);
+                    }}
+                    onFocus={() => setShowSupplierSuggestions(true)}
+                    placeholder="Type to search..."
+                    className="pl-9"
+                    required
+                  />
+                </div>
+
+                {showSupplierSuggestions && supplierSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full bg-popover text-popover-foreground border rounded-md shadow-md mt-1 overflow-hidden">
+                    {supplierSuggestions.map((s) => (
+                      <div
+                        key={s.id}
+                        className="px-4 py-2 hover:bg-muted cursor-pointer text-sm"
+                        onClick={() => selectSupplier(s)}
+                      >
+                        {s.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mt-2">
+                  <div className="text-xs text-muted-foreground">
+                    {selectedSupplier?.id && <span>Selected: <span className="font-semibold text-foreground">{selectedSupplier.name}</span></span>}
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={quickCreateSupplier} disabled={isSaving || !supplierQuery.trim()}>
+                    <UserPlus className="h-3.5 w-3.5 mr-2" /> Quick Create "{supplierQuery || '...'}"
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="form-actions">
-          <button className="button primary" type="submit" disabled={isSaving}>
-            {isSaving ? 'Saving...' : '✅ Create Purchase Invoice'}
-          </button>
-        </div>
-      </form>
+            {/* Line Items */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold flex items-center gap-2"><ShoppingCart className="h-4 w-4" /> Items</h3>
+                <Button type="button" variant="outline" size="sm" onClick={addLine} disabled={isSaving}>
+                  <Plus className="h-3.5 w-3.5 mr-2" /> Add Item
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {lines.map((l, idx) => (
+                  <div key={idx} className="flex flex-col md:flex-row gap-3 items-start md:items-end p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors">
+                    <div className="flex-1 w-full space-y-2">
+                      <label className="text-xs font-medium">Bundle Type</label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={l.bundle_id}
+                        onChange={(e) => updateLine(idx, 'bundle_id', e.target.value)}
+                        required
+                      >
+                        <option value="">Select Bundle...</option>
+                        {bundles.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({b.packs_per_bundle} packs)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="w-full md:w-32 space-y-2">
+                      <label className="text-xs font-medium">Qty (Bundles)</label>
+                      <Input type="number" min="1" value={l.bundles_qty} onChange={(e) => updateLine(idx, 'bundles_qty', e.target.value)} required />
+                    </div>
+
+                    <div className="w-full md:w-40 space-y-2">
+                      <label className="text-xs font-medium">Cost/Bundle (LKR)</label>
+                      <Input type="number" step="0.01" min="0" value={l.unit_cost_per_bundle} onChange={(e) => updateLine(idx, 'unit_cost_per_bundle', e.target.value)} required />
+                    </div>
+
+                    <div className="pb-1">
+                      {lines.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeLine(idx)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Advanced & Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+              {/* Advanced Section */}
+              <div className="space-y-4">
+                <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={() => setShowAdvanced(!showAdvanced)}>
+                  {showAdvanced ? <ChevronDown className="h-4 w-4 mr-2" /> : <ChevronRight className="h-4 w-4 mr-2" />}
+                  Advanced (Discounts, Notes)
+                </Button>
+
+                {showAdvanced && (
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border animate-in slide-in-from-top-2 duration-200">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Discount (LKR)</label>
+                      <Input type="number" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Other Charges (LKR)</label>
+                      <Input type="number" step="0.01" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Notes</label>
+                      <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional purchase notes..." />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Summary Card */}
+              <Card className="bg-muted/40 border-primary/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calculator className="h-5 w-5" /> Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{currencyFormatter.format(calc.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span className="text-destructive">-{currencyFormatter.format(calc.disc)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Charges</span>
+                    <span>+{currencyFormatter.format(calc.other)}</span>
+                  </div>
+                  <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                    <span>Total Payable</span>
+                    <span className="text-primary">{currencyFormatter.format(calc.total)}</span>
+                  </div>
+
+                  <Button size="lg" className="w-full mt-4" type="submit" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" /> Create Purchase Invoice
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
