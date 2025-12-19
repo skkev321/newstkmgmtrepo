@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Search, RotateCw, Package, ArrowRightLeft, AlertTriangle } from 'lucide-react';
+import { Search, RotateCw, Package, ArrowRightLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function ViewStock({ supabaseClient }) {

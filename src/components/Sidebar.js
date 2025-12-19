@@ -11,7 +11,6 @@ import {
     History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import logo from '../logo.svg'; // Assuming we can use the existing logo or just text
 
 const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,7 +32,7 @@ export default function Sidebar() {
                     <span>StockManager</span>
                 </div>
             </div>
-            
+
             <nav className="flex-1 px-3 space-y-1">
                 {navItems.map((item) => (
                     <NavLink
@@ -54,7 +53,7 @@ export default function Sidebar() {
                     </NavLink>
                 ))}
             </nav>
-            
+
             <div className="p-4 border-t border-border">
                 <div className="px-3 py-2">
                     <p className="text-xs text-muted-foreground font-medium">v1.0.0</p>

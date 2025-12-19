@@ -3,7 +3,7 @@ import { currencyFormatter, percentageFormatter } from './formatters';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import moment from 'moment';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { ArrowUpRight, ArrowDownRight, DollarSign, Activity, CreditCard, Package } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, DollarSign, Activity } from 'lucide-react';
 
 export default function ViewAnalytics({ supabaseClient }) {
   const [data, setData] = useState(null);

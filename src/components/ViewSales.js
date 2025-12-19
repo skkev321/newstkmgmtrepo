@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { currencyFormatter } from './formatters';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { TrendingUp, Search, Calendar, User, Package } from 'lucide-react';
+import { TrendingUp, User, Package } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Button } from './ui/button';
 
 export default function ViewSales({ supabaseClient }) {
   const [rows, setRows] = useState([]);
