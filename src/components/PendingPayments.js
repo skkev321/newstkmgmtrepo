@@ -3,7 +3,7 @@ import { generateCustomerOutstandingReceipt, generateSupplierOutstandingReceipt 
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Printer, Check, ChevronDown, ChevronRight, Calculator, CreditCard, RotateCw, User, Truck, DollarSign } from 'lucide-react';
+import { Printer, Check, ChevronDown, ChevronRight, CreditCard, User, Truck } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { currencyFormatter } from './formatters';
 

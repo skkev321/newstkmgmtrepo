@@ -3,7 +3,7 @@ import { currencyFormatter, percentageFormatter } from './formatters';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { BarChart3, Calendar, DollarSign, TrendingUp, ShoppingBag, CreditCard, RefreshCw } from 'lucide-react';
+import { BarChart3, Calendar, DollarSign, TrendingUp, ShoppingBag, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function ViewBorrowing({ supabaseClient }) {
